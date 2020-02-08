@@ -1,33 +1,83 @@
-#
-# This is the user-interface definition of a Shiny web application. You can
-# run the application by clicking 'Run App' above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
 
-library(shiny)
-
-# Define UI for application that draws a histogram
-shinyUI(fluidPage(
-
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
-
-    # Sidebar with a slider input for number of bins
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-            plotOutput("distPlot")
+shinyUI(dashboardPage(
+    skin = c('black'),
+    
+    ##### Dashboard Header #####
+    dashboardHeader(title = 'Lending Club Sample'),
+    
+    ##### Dashboard Sidebar #####
+    dashboardSidebar(
+        sidebarUserPanel('Tyler Kotnour'),
+        sidebarMenu(
+            menuItem("Home", tabName = "home", icon = icon("home")),
+            menuItem("Purpose", tabName = "purpose", icon = icon("database")),
+            menuItem("Map", tabName = "map", icon = icon("map")),
+            menuItem("Data", tabName = "data", icon = icon("database"))
+        )
+        #new addition selectizeInput -- choice gives you the choice of the variable choice defined in global.R which contains the column names
+        #,selectizeInput(inputId = 'selected', label = 'Select item to display', choice = choices )
+    ),
+    ##### Dashboard Body #####
+    dashboardBody(
+        tabItems(
+            ### Main Page
+            tabItem(tabName = "home",
+                    fluidRow(
+                        
+                        ### Start Total Boxes ###
+                        
+                        infoBoxOutput('tot_req'),
+                        infoBoxOutput('tot_funded'),
+                        infoBoxOutput('tot_paid')
+                        
+                        ### End Total Boxes ###
+                    ) ),
+            
+            tabItem(tabName = "purpose",
+                    
+                    fluidRow(infoBoxOutput(""),
+                             infoBoxOutput(""),
+                             infoBoxOutput("")),
+                    fluidRow(box(htmlOutput('purp_bar'),
+                                 height = 400),
+                             box(htmlOutput('OTHERPLOT_NOT_NAMED'),
+                                 height = 400)),
+                    fluidRow(box(
+                        selectizeInput(inputId = 'selected', label = 'Select item to display', choice = choices )
+                    )
+                    )
+            ),                 
+            tabItem(tabName = "map",
+                    
+                    fluidRow(infoBoxOutput("maxBox"),
+                             infoBoxOutput("minBox"),
+                             infoBoxOutput("avgBox")),
+                    fluidRow(box(htmlOutput('map'),
+                                 height = 400),
+                             box(htmlOutput('hist'),
+                                 height = 400)),
+                    fluidRow(box(
+                        selectizeInput(inputId = 'selected', label = 'Select item to display', choice = choices )
+                    )
+                )
+            ),
+            tabItem(tabName = "data",
+                    fluidRow(box(DT::dataTableOutput('table'),
+                                 width = 12))
+            )
         )
     )
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 ))
