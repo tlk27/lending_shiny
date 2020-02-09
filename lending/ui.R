@@ -33,20 +33,24 @@ shinyUI(dashboardPage(
                         ### End Total Boxes ###
                     ) ),
             
+            ### Purpose ###
             tabItem(tabName = "purpose",
                     
-                    fluidRow(infoBoxOutput(""),
-                             infoBoxOutput(""),
-                             infoBoxOutput("")),
-                    fluidRow(box(htmlOutput('purp_bar'),
-                                 height = 400),
-                             box(htmlOutput('OTHERPLOT_NOT_NAMED'),
-                                 height = 400)),
-                    fluidRow(box(
-                        selectizeInput(inputId = 'selected', label = 'Select item to display', choice = choices )
-                    )
-                    )
-            ),                 
+
+                fluidRow((htmlOutput('purp_bar') ) ),
+                fluidRow(
+                    tabsetPanel(
+                        tabPanel('Income Statistics', 
+                                 DT::dataTableOutput('purp_tab'),
+                                 width = 12),
+                        
+                        tabPanel('Home Ownership & Application Type',
+                                 box(DT::dataTableOutput('home_tab'),
+                                 width = 4),
+                                 box(DT::dataTableOutput("app_type"), 
+                                 width = 4) ) ) ) ),
+            
+            ### Map ###
             tabItem(tabName = "map",
                     
                     fluidRow(infoBoxOutput("maxBox"),
@@ -61,23 +65,12 @@ shinyUI(dashboardPage(
                     )
                 )
             ),
+            
             tabItem(tabName = "data",
                     fluidRow(box(DT::dataTableOutput('table'),
                                  width = 12))
-            )
-        )
-    )
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-))
+         )
+       )
+     )
+   )
+)

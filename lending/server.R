@@ -14,7 +14,6 @@ shinyServer(function(input, output) {
             scales::dollar() %>% 
         infoBox(
                 title= "Total Loans Requested ($)",
-                # value = sum(loans_c[, 'loan_amnt']),
                 icon = icon("search-dollar"),
                 color = "olive",
                 width = 3,
@@ -23,7 +22,7 @@ shinyServer(function(input, output) {
     
     output$tot_funded <- renderInfoBox({
         loan_tots() %>% 
-            summarise(fund_sum = sum(funded_amnt),) %>% 
+            summarise(fund_sum = sum(funded_amnt)) %>% 
             .$fund_sum %>% 
             scales::dollar() %>% 
             infoBox(
@@ -50,22 +49,89 @@ shinyServer(function(input, output) {
     ####################
     ##### Purpose ######
     ####################
+    
     output$purp_bar <- renderGvis({
-        purp_vis = loan_purps %>%
+        purp_vis = loans_c %>%
             group_by(purpose) %>% 
-            summarise(n_purp = n(purpose))
+            summarise(n_purp = n()) %>% 
+            arrange(desc(n_purp))
         
-        gvisBarChart(n_puprxvar='purpose', 
-            
+        gvisBarChart(purp_vis, xvar = 'purpose', yvar = 'n_purp',
+                     options = list(width = 'auto', height = 'auto',
+                                    #800 300
+                                    hAxes="[{title:'Frequency'}]",
+                                    vAxes="[{title:'Purpose'}]",
+                                    chartArea =
+                                         "{'width': '85%', right: '10'}",
+                                    hAxis= "{'showTextEvery': '1'}",
+                                    vAxis= "{'showTextEvery': '1'}")
+                     # chartArea =
+                     #     "{'width': '82%', height: '60%',
+                     #      top: '9%', right: '3%', bottom: '90'}")  
         )
     })
     
+    output$purp_g_bar <- renderGvis({
+        purp_grade = loans_c %>%
+            group_by(purpose) %>%
+            count(grade)
+            #ungroup()
+            #arrange(desc(n_purp_g))
+        gvisBarChart(purp_grade, xvar = 'purpose', yvar = 'n',
+                     options = list(width = 'auto', height = 'auto',
+                                    #800 300
+                                    hAxes="[{title:'Frequency'}]",
+                                    vAxes="[{title:'Purpose'}]",
+                                    chartArea =
+                                        "{'width': '85%', right: '10'}",
+                                    hAxis= "{'showTextEvery': '1'}",
+                                    vAxis= "{'showTextEvery': '1'}"))
+    })
+    
+
+    output$purp_tab <- renderDataTable({
+        
+        demo_table = dt_vars()  %>%
+            summarize_all(.funs =  list( min = min,
+                                         max = max,
+                                         mean = mean,
+                                         median = median,
+                                         sd = sd ) ) %>%
+            gather('stat', 'val') %>%
+            separate(stat, into = c("var", "stat"), sep = "_") %>%
+            spread(stat, val) %>%
+            select(var, min, max, median, mean, sd)
+        
+        datatable(demo_table, rownames=FALSE, options = list(paging = F, searching = F))
+
+    })
+
+    output$home_tab <- renderDataTable({
+        home_table = loan_purps() %>% 
+            select(home_ownership) %>%
+            group_by(home_ownership) %>% 
+            count() %>% 
+            arrange(desc(n))
+        
+        datatable(home_table, rownames=FALSE, options = list(paging = F, searching = F))
+        
+    })
+    
+    output$app_type <- renderDataTable({
+        app_table = loan_purps() %>% 
+            select(application_type) %>%
+            group_by(application_type) %>% 
+            count() %>% 
+            arrange(desc(n))
+        
+        datatable(app_table, rownames=FALSE, options = list(paging = F, searching = F))
+    })
+
 
     ####################
     ##### Map Page #####
     ####################
 
-    
     # show map using googleVis
     output$map <- renderGvis({
         gvisGeoChart(loans_c, locationvar = "addr_state", input$selected,
@@ -80,13 +146,6 @@ shinyServer(function(input, output) {
     output$hist <- renderGvis(
         gvisHistogram(loans_c[,input$selected, drop = FALSE]))
     
-    # show data using DataTable
-    output$table <- DT::renderDataTable({
-        datatable(loans_c, rownames=FALSE) %>% 
-            formatStyle(input$selected,  
-                        background="skyblue", fontWeight='bold')
-        # Highlight selected column using formatStyle
-    })
     
     # show statistics using infoBox
     # output$maxBox <- renderInfoBox({
