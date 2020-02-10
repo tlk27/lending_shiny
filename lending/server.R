@@ -230,24 +230,6 @@ shinyServer(function(input, output) {
     output$hist <- renderGvis(
         gvisHistogram(loans_c[,input$selected, drop = FALSE]))
     
-    
-    # show statistics using infoBox
-    # output$maxBox <- renderInfoBox({
-    #     max_value <- max(loans_c[,input$selected])
-    #     max_state <- 
-    #         loans_c$addr_state[loans_c[,input$selected]==max_value]
-    #     infoBox(max_state, max_value, icon = icon("hand-o-up"))
-    # })
-    # output$minBox <- renderInfoBox({
-    #     min_value <- min(loans_c[,input$selected])
-    #     min_state <- 
-    #         loans_c$addr_state[loans_c[,input$selected]==min_value]
-    #     infoBox(min_state, min_value, icon = icon("hand-o-down"))
-    # })
-    # output$avgBox <- renderInfoBox(
-    #     infoBox(paste("AVG.", input$selected),
-    #             mean(loans_c[,input$selected]), 
-    #             icon = icon("calculator"), fill = TRUE))
 }
 )
 
