@@ -2,6 +2,7 @@ library(shinydashboard)
 library(shiny)
 library(tidyverse)
 library(googleVis)
+library(dygraphs)
 library(DT)
 
 loans_c = read_csv('../loans_c.csv')
@@ -36,6 +37,17 @@ dt_vars = reactive ({
     na_if(999) %>%
     drop_na()
 })
+
+payments = reactive({
+  loans_c %>% 
+    select (issue_d, funded_amnt, total_pymnt) %>%
+    mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y')) %>% 
+    group_by(issue_d) %>% 
+    summarise(rec_monthly = round(sum(total_pymnt), 2), funded_monthly = round(sum(funded_amnt), 2) )
+})
+
+
+
 
 
 # May add this after additional column removal later

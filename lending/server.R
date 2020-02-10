@@ -88,6 +88,26 @@ shinyServer(function(input, output) {
                                     vAxis= "{'showTextEvery': '1'}"))
     })
     
+    output$purp_time = renderPlot({
+        colors_ = c(RColorBrewer::brewer.pal(name="Set1", n = 8), RColorBrewer::brewer.pal(name="Paired", n = 6))
+        
+        loans_c %>%
+            filter(purpose == input$show_purp) %>%
+            select(purpose, issue_d) %>%
+            mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
+                   issue_d = as.Date(issue_d)) %>%
+            group_by(issue_d, purpose) %>%
+            summarize(frequency = n()) %>%
+            ggplot(aes(x=issue_d, y=frequency)) +
+            geom_line(aes(color = purpose, group=purpose), stat = 'identity') +
+            scale_x_date(date_labels = "%m-%Y", date_breaks = "12 months") +
+            scale_color_manual(values = colors_) +
+            ylab('Frequency') +
+            xlab('Time') +
+            ggtitle('Issued Loan Purposes Over Time')
+        
+    }) 
+    
 
     output$purp_tab <- renderDataTable({
         
@@ -126,7 +146,71 @@ shinyServer(function(input, output) {
         
         datatable(app_table, rownames=FALSE, options = list(paging = F, searching = F))
     })
+    
+ 
+    ####################
+    ##### Fund Page ####
+    ####################
+       
+    output$fund_pay = renderDygraph({
+        pay_xts = xts::xts(payments()[,-1], as.Date(payments()$issue_d) )
+        
+        pay_xts %>% 
+            dygraph(main = "Funded Loan Amounts vs. Total Received Payments by Month") %>%
+            dyAxis(
+                "y",
+                label = "Dollars ($)",
+                valueFormatter = 'function(d){return d.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
+                axisLabelFormatter = 'function(d){return d.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
+                axisLabelWidth = 70,
+                axisLabelFontSize = 10
+            ) %>%
+            dyLegend(show = "always", hideOnMouseOut = FALSE, width = 525) %>% 
+            dyOptions(colors = RColorBrewer::brewer.pal("qual", "Dark2")) %>% 
+            dySeries("rec_monthly", label = "Total Payments Received \n") %>%
+            dySeries("funded_monthly", label = "Total Loans Funded \n") %>%
+            dyOptions(stackedGraph = TRUE) %>%
+            dyRangeSelector(height = 20)
+        
+    })
+    
+    ####################
+    #### Grade Page ####
+    ####################
+    
+    output$loan_grades = renderPlot({
 
+        loans_c %>%
+        filter(grade == input$show_grades) %>%
+            select(grade, issue_d) %>%
+            mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
+                   issue_d = as.Date(issue_d)) %>%
+            group_by(issue_d, grade) %>%
+            summarize(frequency = n()) %>%
+            ggplot(aes(x=issue_d, y=frequency)) +
+            geom_line(aes(color = grade, group=grade), stat = 'identity') +
+            scale_x_date(date_labels = "%m-%Y", date_breaks = "12 months") +
+            scale_colour_brewer(palette = "Set1") +
+            ylab('Frequency') +
+            xlab('Time') +
+            ggtitle('Issued Loan Grades Over Time')
+            
+    }) 
+    
+    output$purp_grade = renderPlot({
+        
+        loan_purps() %>%
+            filter(grade == input$show_grades) %>% 
+            group_by(purpose, grade) %>% 
+            summarise(n = n()) %>% 
+            ggplot(aes(x=purpose, y=n)) +
+            geom_bar(aes(fill=grade), stat='identity', position = 'dodge') +
+            coord_flip() + 
+            scale_fill_brewer(palette = "Set1") +
+            xlab('Purpose') +
+            ylab('Frequency') +
+            ggtitle('Purpose of Loan by Grade')
+    })  
 
     ####################
     ##### Map Page #####
