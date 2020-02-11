@@ -4,16 +4,18 @@ library(tidyverse)
 library(googleVis)
 library(dygraphs)
 library(DT)
+library(rsconnect)
 
-loans_c = read_csv('../loans_c.csv')
+loans_c = read_csv('./loans_c.csv')
 
-choices = colnames(loans_c)
-
+######################## Home
 
 loan_tots = reactive({
   loans_c %>%
     select(loan_amnt, funded_amnt, total_pymnt)
 })
+
+######################## Purpose
 
 loan_purps = reactive({
   loans_c %>%
@@ -26,18 +28,28 @@ loan_purps = reactive({
       dti,
       grade,
       sub_grade
-    ) #maybe add other characteristics/demographics
+    ) %>% 
+    mutate(purpose = gsub('_', ' ', purpose))
   
 })
 
+# p_names = loans_c %>%
+#   select(purpose) %>% 
+#   mutate(purpose = gsub('_', ' ', purpose))
+# 
+# p_choices = unique(p_names)
+
+
 dt_vars = reactive ({
   loans_c %>%
-    select(annual.inc = annual_inc, dti, yrs.emp = emp_length) %>%
-    mutate(yrs.emp = as.numeric(gsub('[^0-9]', '', yrs.emp))) %>%
+    select('annual income' = annual_inc, dti, emp_length) %>%
+    mutate('years employed' = as.numeric(gsub('[^0-9]', '', emp_length))) %>%
+    select('annual income', dti, 'years employed') %>% 
     na_if(999) %>%
     drop_na()
 })
 
+######################## Payments
 payments = reactive({
   loans_c %>% 
     select (issue_d, funded_amnt, total_pymnt) %>%
@@ -46,13 +58,28 @@ payments = reactive({
     summarise(rec_monthly = round(sum(total_pymnt), 2), funded_monthly = round(sum(funded_amnt), 2) )
 })
 
+######################## Map
+loan_maps = reactive({
+  loans_c %>%
+    select(addr_state, loan_amnt, funded_amnt, total_pymnt) %>%
+    group_by(addr_state) %>% 
+    summarise_all(list(sum)) %>% 
+    select(addr_state, 
+           'requested amount' = loan_amnt, 
+           'funded amount' = funded_amnt, 
+           'total payments received' = total_pymnt)
+})
+
+m_names = loans_c %>%
+select('requested amount' = loan_amnt, 
+       'funded amount' = funded_amnt, 
+       'total payments received' = total_pymnt)
+
+choices = colnames(m_names)
 
 
 
 
-# May add this after additional column removal later
-#
-# loan_maps = reactive({
-#   loans_c %>%
-#     select(addr_state)
-# })  
+
+
+
