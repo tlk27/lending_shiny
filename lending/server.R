@@ -12,7 +12,7 @@ shinyServer(function(input, output) {
             summarise(loan_sum = sum(loan_amnt)) %>% 
             .$loan_sum %>% 
             scales::dollar() %>% 
-        infoBox(
+            infoBox(
                 title= "Total Loans Requested ($)",
                 icon = icon("search-dollar"),
                 color = "olive",
@@ -50,12 +50,11 @@ shinyServer(function(input, output) {
     ##### Purpose ######
     ####################
     
-    
     output$purp_bar <- renderGvis({
         purp_vis = loans_c %>%
-            mutate(purpose = gsub('_', ' ', purpose)) %>% 
-            group_by(purpose) %>% 
-            summarise(n = n()) %>% 
+            mutate(purpose = gsub('_', ' ', purpose)) %>%
+            group_by(purpose) %>%
+            summarise(n = n()) %>%
             arrange(desc(n))
         
         gvisBarChart(purp_vis, xvar = 'purpose', yvar = 'n',
@@ -63,15 +62,14 @@ shinyServer(function(input, output) {
                                     hAxes="[{title:'Frequency'}]",
                                     vAxes="[{title:'Purpose'}]",
                                     chartArea =
-                                         "{'width': '85%', right: '10'}",
+                                        "{'width': '85%', right: '10'}",
                                     hAxis= "{'showTextEvery': '1'}",
                                     vAxis= "{'showTextEvery': '1'}",
-                                    title="Frequency by Loan Purpose")
-
-        )
+                                    title="Frequency by Loan Purpose"))
+        
     })
     
-   
+    
     output$purp_time = renderPlot({
         colors_ = c(RColorBrewer::brewer.pal(name="Set1", n = 8), RColorBrewer::brewer.pal(name="Paired", n = 6))
         
@@ -82,7 +80,7 @@ shinyServer(function(input, output) {
                    issue_d = as.Date(issue_d),
                    purpose = gsub('_', ' ', purpose)) %>%
             group_by(issue_d, purpose) %>%
-            summarize(frequency = n()) %>%
+            summarise(frequency = n()) %>%
             ggplot(aes(x=issue_d, y=frequency)) +
             geom_line(aes(color = purpose, group=purpose), stat = 'identity') +
             scale_x_date(date_labels = "%m-%Y", date_breaks = "12 months") +
@@ -97,7 +95,7 @@ shinyServer(function(input, output) {
         
     }) 
     
-
+    
     output$purp_tab <- renderDataTable({
         
         demo_table = dt_vars()  %>%
@@ -112,9 +110,9 @@ shinyServer(function(input, output) {
             select(variable, min, max, median, mean, sd)
         
         datatable(demo_table, rownames=FALSE, options = list(paging = F, searching = F))
-
+        
     })
-
+    
     output$home_tab <- renderDataTable({
         home_table = loan_purps() %>% 
             select(home_ownership) %>%
@@ -140,11 +138,11 @@ shinyServer(function(input, output) {
         datatable(app_table, rownames=FALSE, options = list(paging = F, searching = F))
     })
     
- 
+    
     ####################
     ##### Fund Page ####
     ####################
-       
+    
     output$fund_pay = renderDygraph({
         pay_xts = xts::xts(payments()[,-1], as.Date(payments()$issue_d) )
         
@@ -171,72 +169,108 @@ shinyServer(function(input, output) {
     #### Grade Page ####
     ####################
     
-    output$loan_grades = renderPlot({
+    ## Plot: Frequency of Issued Loans by Grade Over Time
+    output$loan_grades = renderGvis({
 
-        loans_c %>%
-        filter(grade == input$show_grades) %>%
-            select(grade, issue_d) %>%
+        loans_c %>% 
+            select(grade, issue_d) %>% 
             mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
-                   issue_d = as.Date(issue_d)) %>%
-            group_by(issue_d, grade) %>%
-            summarize(frequency = n()) %>%
-            ggplot(aes(x=issue_d, y=frequency)) +
-            geom_line(aes(color = grade, group=grade), stat = 'identity') +
-            scale_x_date(date_labels = "%m-%Y", date_breaks = "12 months") +
-            scale_colour_brewer(palette = "Set1") +
-            ylab('Frequency') +
-            xlab('Time') +
-            ggtitle('Issued Loan Grades Over Time') +
-            theme(axis.text = element_text(size = 11),
-                  axis.title = element_text(size = 13),
-                  title = element_text(size = 16),
-                  legend.text = element_text(size = 11))
-            
-    }) 
-    
-    output$purp_grade = renderPlot({
+                   issue_d = as.Date(issue_d)) %>% 
+            group_by(issue_d, grade) %>% 
+            summarise(frequency = n()) %>% 
+            spread(key = grade, value = frequency)
         
-        loan_purps() %>%
-            filter(grade == input$show_grades2) %>% 
-            group_by(purpose, grade) %>% 
-            summarise(n = n()) %>% 
-            ggplot(aes(x=purpose, y=n)) +
-            geom_bar(aes(fill=grade), stat='identity', position = 'dodge') +
-            coord_flip() + 
-            scale_fill_brewer(palette = "Set1") +
-            xlab('Purpose') +
-            ylab('Frequency') +
-            ggtitle('Purpose of Loan by Grade') +
-            theme(axis.text = element_text(size = 11),
-                  axis.title = element_text(size = 13),
-                  title = element_text(size = 16),
-                  legend.text = element_text(size = 11))
+        gvisLineChart(test, xvar="issue_d", yvar=c("A", "B", "C", "D", "E", "F", "G"),
+                      options = list(width = 1100, height = 400,
+                                     hAxes="[{title:'Time'}]",
+                                     vAxes="[{title:'Frequency'}]",
+                                     hAxis= "{'showTextEvery': '1'}",
+                                     vAxis= "{'showTextEvery': '1'}",
+                                     title="Frequency of Issued Loans by Grade Over Time",
+                                     explorer="{actions:['dragToZoom', 'rightClickToReset']}",
+                                     bar="{groupWidth:'100%'}"))
+
     })
     
+    ## Plot: Proportion of Grades within Loan Purpose
+    output$purp_grade = renderGvis({
+        purp_x_grade = grades_df() %>% 
+            group_by(purpose, grade) %>% 
+            summarise(n = n()) %>% 
+            mutate(proportion = round(n / sum(n), 3)) %>%
+            select(-n) %>% 
+            spread(key = grade, value = proportion)
+        
+        gvisColumnChart(purp_x_grade, xvar="purpose", yvar=c("A", "B", "C", "D", "E", "F", "G"),
+                        options = list(width = 1100, height = 400,
+                                       hAxes="[{title:'Purpose'}]",
+                                       vAxes="[{title:'Proportion'}]",
+                                       hAxis= "{'showTextEvery': '1'}",
+                                       vAxis= "{'showTextEvery': '1'}",
+                                       title="Proportion of Grades within Loan Purpose",
+                                       explorer="{actions:['dragToZoom', 'rightClickToReset']}"))
+    })
+    
+    ## Plot: Proportion of Grades within Loan Status
+    output$grade_status = renderGvis ({
+        
+        status_g_graph = grades_df() %>%
+            group_by(loan_status, grade) %>%
+            summarise(n = n()) %>%
+            mutate(proportion = n / sum(n)) %>%
+            select(-n) %>% 
+            spread(key = grade, value = proportion)
+        
+        gvisColumnChart(status_g_graph, xvar="loan_status", yvar=c("A", "B", "C", "D", "E", "F", "G"),
+                        options = list(width = 1100, height = 400,
+                                       hAxes="[{title:'Proportion'}]",
+                                       vAxes="[{title:'Loan Status'}]",
+                                       hAxis= "{'showTextEvery': '1'}",
+                                       vAxis= "{'showTextEvery': '1'}",
+                                       title="Proportion of Grades within Loan Status",
+                                       explorer="{actions:['dragToZoom', 'rightClickToReset']}"))    
+        
+    })
+    
+    ## DT: Grade Freq
     output$grade_freq <- renderDataTable({
-        grade_table = loan_purps() %>% 
-            select(grade) %>%
+        grade_table = grades_df() %>% 
+            # select(grade) %>%
             group_by(grade) %>% 
-            count() %>% 
-            arrange(desc(n))
+            summarise(n = n()) %>% 
+            mutate(proportion = round(n / sum(n), 3)) %>% 
+            arrange(grade)
         
         datatable(grade_table, rownames=FALSE, options = list(paging = F, searching = F))
     })
     
+    ## DT: Grade x Purpose
     output$purp_g_freq <- renderDataTable({
-        g_purp_table = loan_purps() %>% 
-            select(grade, purpose) %>%
+        g_purp_table = grades_df() %>%
             group_by(purpose, grade) %>% 
-            count() %>%
-            spread(key = grade, value = n)
+            summarise(n = n()) %>% 
+            mutate(proportion = round(n / sum(n), 3)) %>%
+            select(-n) %>% 
+            spread(key = grade, value = proportion)
         
         datatable(g_purp_table, rownames=FALSE, options = list(paging = F, searching = F))
     })
-
+    
+    # output$purp_g_freq <- renderDataTable({
+    #     g_purp_table = grades_df() %>%
+    #         group_by(purpose, grade) %>% 
+    #         summarise(n = n()) %>% 
+    #         mutate(proportion = round(n / sum(n), 3)) %>%
+    #         select(-n) %>% 
+    #         spread(key = grade, value = proportion)
+    #     
+    #     datatable(g_purp_table, rownames=FALSE, options = list(paging = F, searching = F))
+    # })
+    
     ####################
     ##### Map Page #####
     ####################
-
+    
     # show map using googleVis
     output$map <- renderGvis({
         gvisGeoChart(loan_maps(), locationvar = "addr_state", input$selected,

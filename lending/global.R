@@ -33,12 +33,6 @@ loan_purps = reactive({
   
 })
 
-# p_names = loans_c %>%
-#   select(purpose) %>% 
-#   mutate(purpose = gsub('_', ' ', purpose))
-# 
-# p_choices = unique(p_names)
-
 
 dt_vars = reactive ({
   loans_c %>%
@@ -58,6 +52,14 @@ payments = reactive({
     summarise(rec_monthly = round(sum(total_pymnt), 2), funded_monthly = round(sum(funded_amnt), 2) )
 })
 
+######################## Grades
+
+grades_df = reactive({
+  loans_c %>% 
+    select(grade, purpose, loan_status) %>%
+    mutate(purpose = gsub('_', ' ', purpose))
+})
+  
 ######################## Map
 loan_maps = reactive({
   loans_c %>%
@@ -71,9 +73,9 @@ loan_maps = reactive({
 })
 
 m_names = loans_c %>%
-select('requested amount' = loan_amnt, 
-       'funded amount' = funded_amnt, 
-       'total payments received' = total_pymnt)
+  select('requested amount' = loan_amnt, 
+         'funded amount' = funded_amnt, 
+         'total payments received' = total_pymnt)
 
 choices = colnames(m_names)
 
