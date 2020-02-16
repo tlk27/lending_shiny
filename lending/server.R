@@ -4,47 +4,20 @@ shinyServer(function(input, output) {
     ####################
     #### Home  Page ####
     ####################
-    ### Totals Boxes ###
+    
+    ####################
+    ##### Map Page #####
     ####################
     
-    output$tot_req <- renderInfoBox({
-        loan_tots() %>% 
-            summarise(loan_sum = sum(loan_amnt)) %>% 
-            .$loan_sum %>% 
-            scales::dollar() %>% 
-            infoBox(
-                title= "Total Loans Requested ($)",
-                icon = icon("search-dollar"),
-                color = "olive",
-                width = 3,
-                fill = TRUE)
+    output$map <- renderGvis({
+        gvisGeoChart(loan_maps(), locationvar = "addr_state", input$selected,
+                     options=list(region="US", displayMode="regions", 
+                                  resolution="provinces",
+                                  width="auto", height="auto",
+                                  title='U.S. Map by Input Selection'))
+        
     })
     
-    output$tot_funded <- renderInfoBox({
-        loan_tots() %>% 
-            summarise(fund_sum = sum(funded_amnt)) %>% 
-            .$fund_sum %>% 
-            scales::dollar() %>% 
-            infoBox(
-                title= "Total Loans Funded ($)",
-                icon = icon("hand-holding-usd"),
-                color = "green",
-                width = 3,
-                fill = TRUE)
-    })
-    
-    output$tot_paid <- renderInfoBox({
-        loan_tots() %>% 
-            summarise(paid_sum = sum(total_pymnt)) %>% 
-            .$paid_sum %>% 
-            scales::dollar() %>% 
-            infoBox(
-                title= "Total Loans Paid ($)",
-                icon = icon("money-check-alt"),
-                color = "olive",
-                width = 3,
-                fill = TRUE)
-    })
     
     ####################
     ##### Purpose ######
@@ -59,14 +32,15 @@ shinyServer(function(input, output) {
             arrange(desc(n))
         
         gvisBarChart(purp_vis, xvar = 'purpose', yvar = 'n',
-                     options = list(width = 'auto', height = 'auto',
+                     options = list(width = 'auto', height = 400,
                                     hAxes="[{title:'Frequency'}]",
                                     vAxes="[{title:'Purpose'}]",
                                     chartArea =
-                                        "{'width': '85%', right: '10'}",
-                                    hAxis= "{'showTextEvery': '1'}",
-                                    vAxis= "{'showTextEvery': '1'}",
-                                    title="Frequency by Loan Purpose"))
+                                       "{'width': '85%', right: '10'}",
+                                    hAxis= "{'showTextEvery': '3'}",
+                                    #vAxis= "{'showTextEvery': '1'}",
+                                    title="Frequency by Loan Purpose",
+                                    explorer="{actions:['dragToZoom', 'rightClickToReset']}"))
         
     })
     
@@ -75,7 +49,6 @@ shinyServer(function(input, output) {
     output$purp_time = renderGvis({
         
             pt_plot = grades_df() %>%
-                #filter( purpose == input$show_purp) %>% 
                 mutate(issue_d = as.Date(issue_d)) %>% 
                 group_by(issue_d, purpose) %>%
                 summarise(frequency = n()) %>% 
@@ -85,7 +58,7 @@ shinyServer(function(input, output) {
         gvisLineChart(pt_plot, xvar="issue_d", yvar= c("debt consolidation", "credit card",        "moving",             "car",               "other",              "home improvement",  
                                                        "medical",            "small business",     "major purchase",     "vacation",           "wedding",            "house",             
                                                        "renewable energy",   "educational"),
-                      options = list(width = 1100, height = 400,
+                      options = list(width = 'auto', height = 400,
                                      hAxes="[{title:'Time'}]",
                                      vAxes="[{title:'Frequency'}]",
                                      hAxis= "{'showTextEvery': '1'}",
@@ -145,10 +118,72 @@ shinyServer(function(input, output) {
     ####################
     ##### Fund Page ####
     ####################
+    ### Totals Boxes ###
+    ####################
+    
+    output$tot_req <- renderInfoBox({
+        loan_tots() %>% 
+            summarise(loan_sum = sum(loan_amnt)) %>% 
+            .$loan_sum %>% 
+            scales::dollar() %>% 
+            infoBox(
+                title= "Total Loans Requested ($)",
+                icon = icon("search-dollar"),
+                color = "black",
+                width = 5,
+                fill = TRUE)
+    })
+    
+    output$tot_funded <- renderInfoBox({
+        loan_tots() %>% 
+            summarise(fund_sum = sum(funded_amnt)) %>% 
+            .$fund_sum %>% 
+            scales::dollar() %>% 
+            infoBox(
+                title= "Total Loans Funded ($)",
+                icon = icon("hand-holding-usd"),
+                color = "maroon",
+                width = 5,
+                fill = TRUE)
+    })
+    
+    output$tot_paid <- renderInfoBox({
+        loan_tots() %>% 
+            summarise(paid_sum = sum(total_pymnt)) %>% 
+            .$paid_sum %>% 
+            scales::dollar() %>% 
+            infoBox(
+                title= "Total Loans Paid ($)",
+                icon = icon("money-check-alt"),
+                color = "purple",
+                width = 5,
+                fill = TRUE)
+    })
+    
+    output$est_profit <- renderInfoBox({
+        payments() %>% 
+            summarise(fund_sum = sum(funded_amnt),
+                      paid_sum = sum(total_pymnt),
+                      remain_sum = sum(amount_remain, na.rm =T),
+                      est_profit = (paid_sum + remain_sum) - fund_sum ) %>% 
+            .$est_profit %>% 
+            scales::dollar() %>% 
+            infoBox(
+                title= "Estimated Potential Profit ($)",
+                icon = icon("dollar-sign"),
+                color = "olive",
+                width = 5,
+                fill = TRUE)
+    })
+    
     
     ## Dygraph: Funded vs. Received
     output$fund_pay = renderDygraph({
-        pay_xts = xts::xts(payments()[,-1], as.Date(payments()$issue_d) )
+        pay_group = payments() %>% 
+            group_by(issue_d) %>% 
+            summarise(rec_monthly = round(sum(total_pymnt), 2), funded_monthly = round(sum(funded_amnt), 2) )
+        
+        pay_xts = xts::xts(pay_group[,-1], as.Date(pay_group$issue_d) )
         
         pay_xts %>% 
             dygraph(main = "Funded Loan Amounts vs. Total Received Payments by Month") %>%
@@ -169,6 +204,7 @@ shinyServer(function(input, output) {
         
     })
     
+    
     ####################
     #### Grade Page ####
     ####################
@@ -185,7 +221,7 @@ shinyServer(function(input, output) {
             spread(key = grade, value = frequency)
         
         gvisLineChart(grade_time, xvar="issue_d", yvar=c("A", "B", "C", "D", "E", "F", "G"),
-                      options = list(width = 1100, height = 400,
+                      options = list(width = 'auto', height = 400,
                                      hAxes="[{title:'Time'}]",
                                      vAxes="[{title:'Frequency'}]",
                                      hAxis= "{'showTextEvery': '1'}",
@@ -206,7 +242,7 @@ shinyServer(function(input, output) {
             spread(key = grade, value = proportion)
         
         gvisColumnChart(purp_x_grade, xvar="purpose", yvar=c("A", "B", "C", "D", "E", "F", "G"),
-                        options = list(width = 1100, height = 400,
+                        options = list(width = 'auto', height = 400,
                                        hAxes="[{title:'Purpose'}]",
                                        vAxes="[{title:'Proportion'}]",
                                        hAxis= "{'showTextEvery': '1'}",
@@ -245,18 +281,27 @@ shinyServer(function(input, output) {
     ##### Loan Status ####
     ######################   
     
-    ##"purp_status"
+    ##status_prop
     
-    # output$purp_g_freq <- renderDataTable({
-    #     g_purp_table = grades_df() %>%
-    #         group_by(purpose, grade) %>% 
-    #         summarise(n = n()) %>% 
-    #         mutate(proportion = round(n / sum(n), 3)) %>%
-    #         select(-n) %>% 
-    #         spread(key = grade, value = proportion)
-    #     
-    #     datatable(g_purp_table, rownames=FALSE, options = list(paging = F, searching = F))
-    # })
+    output$status_prop = renderGvis ({
+        
+        status_prop_graph = grades_df() %>%
+            group_by(loan_status) %>%
+            summarise(n = n()) %>%
+            mutate(proportion = n / sum(n)) %>% 
+            arrange(desc(proportion))
+
+        
+        gvisBarChart(status_prop_graph, xvar = "loan_status", yvar = "proportion",
+                        options = list(width = 'auto', height = 400,
+                                       hAxes ="[{title:'Proportion'}]",
+                                       vAxes ="[{title:'Loan Status'}]",
+                                       hAxis = "{'showTextEvery': '1'}",
+                                       vAxis = "{'showTextEvery': '1'}",
+                                       title ="Total Proportion by Loan Status",
+                                       explorer ="{actions:['dragToZoom', 'rightClickToReset']}")) 
+    })
+
     
     ## Plot: Proportion of Grades within Loan Status
     output$grade_status = renderGvis ({
@@ -268,14 +313,14 @@ shinyServer(function(input, output) {
             select(-n) %>% 
             spread(key = grade, value = proportion)
         
-        gvisColumnChart(status_g_graph, xvar="loan_status", yvar=c("A", "B", "C", "D", "E", "F", "G"),
-                        options = list(width = 1100, height = 400,
-                                       hAxes="[{title:'Proportion'}]",
-                                       vAxes="[{title:'Loan Status'}]",
-                                       hAxis= "{'showTextEvery': '1'}",
-                                       vAxis= "{'showTextEvery': '1'}",
-                                       title="Proportion of Grades within Loan Status",
-                                       explorer="{actions:['dragToZoom', 'rightClickToReset']}")) 
+        gvisColumnChart(status_g_graph, xvar = "loan_status", yvar = c("A", "B", "C", "D", "E", "F", "G"),
+                        options = list(width = 'auto', height = 400,
+                                       hAxes ="[{title:'Proportion'}]",
+                                       vAxes ="[{title:'Loan Status'}]",
+                                       hAxis = "{'showTextEvery': '1'}",
+                                       vAxis = "{'showTextEvery': '1'}",
+                                       title ="Proportion of Grades within Loan Status",
+                                       explorer ="{actions:['dragToZoom', 'rightClickToReset']}")) 
     })
         
         ## Plot: Proportion of Purpose within Loan Status
@@ -288,40 +333,23 @@ shinyServer(function(input, output) {
                 select(-n) %>% 
                 spread(key = purpose, value = proportion)
             
-            gvisColumnChart(status_purp_graph, xvar="loan_status", yvar= c("debt consolidation", "credit card",        "moving",             "car",               "other",              "home improvement",  
+            gvisColumnChart(status_purp_graph, xvar ="loan_status", yvar = c("debt consolidation", "credit card",        "moving",             "car",               "other",              "home improvement",  
                                                                            "medical",            "small business",     "major purchase",     "vacation",           "wedding",            "house",             
                                                                            "renewable energy",   "educational")  ,
-                            options = list(width = '1100', height = '450',
-                                           hAxes="[{title:'Loan Status'}]",
-                                           vAxes="[{title:'Proportion'}]",
-                                           hAxis= "{'showTextEvery': '1'}",
-                                           vAxis= "{'showTextEvery': '1'}",
-                                           title="Proportion of Purposes within Loan Status",
-                                           explorer="{actions:['dragToZoom', 'rightClickToReset']}"))
+                            options = list(width = 'auto', height = '450',
+                                           hAxes ="[{title:'Loan Status'}]",
+                                           vAxes ="[{title:'Proportion'}]",
+                                           hAxis = "{'showTextEvery': '1'}",
+                                           vAxis = "{'showTextEvery': '1'}",
+                                           title ="Proportion of Purposes within Loan Status",
+                                           explorer ="{actions:['dragToZoom', 'rightClickToReset']}"))
             
         })
     
-    ####################
-    ##### Map Page #####
-    ####################
     
-    # show map using googleVis
-    output$map <- renderGvis({
-        gvisGeoChart(loan_maps(), locationvar = "addr_state", input$selected,
-                     options=list(region="US", displayMode="regions", 
-                                  resolution="provinces",
-                                  width="auto", height="auto",
-                                  title='U.S. Map by Input Selection'))
-        # using width="auto" and height="auto" to
-        # automatically adjust the map size
-    })
     
-    # show histogram using googleVis
-    # output$hist <- renderGvis(
-    #     gvisHistogram(loans_c[,input$selected, drop = FALSE]))
-    
-}
-)
+})
+
 
 
 
