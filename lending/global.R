@@ -56,26 +56,29 @@ payments = reactive({
 
 grades_df = reactive({
   loans_c %>% 
-    select(grade, purpose, loan_status) %>%
-    mutate(purpose = gsub('_', ' ', purpose))
+    select(grade, purpose, loan_status, issue_d) %>%
+    mutate(purpose = gsub('_', ' ', purpose),
+           issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'))
 })
   
 ######################## Map
 loan_maps = reactive({
   loans_c %>%
-    select(addr_state, loan_amnt, funded_amnt, total_pymnt) %>%
+    select(addr_state, loan_amnt, funded_amnt, total_pymnt, tot_coll_amt) %>%
     group_by(addr_state) %>% 
     summarise_all(list(sum)) %>% 
     select(addr_state, 
            'requested amount' = loan_amnt, 
            'funded amount' = funded_amnt, 
-           'total payments received' = total_pymnt)
+           'total payments received' = total_pymnt
+           )
 })
 
 m_names = loans_c %>%
   select('requested amount' = loan_amnt, 
          'funded amount' = funded_amnt, 
-         'total payments received' = total_pymnt)
+         'total payments received' = total_pymnt
+         )
 
 choices = colnames(m_names)
 

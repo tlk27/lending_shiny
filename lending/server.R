@@ -50,6 +50,7 @@ shinyServer(function(input, output) {
     ##### Purpose ######
     ####################
     
+    ## Plot: Purpose Frequencies
     output$purp_bar <- renderGvis({
         purp_vis = loans_c %>%
             mutate(purpose = gsub('_', ' ', purpose)) %>%
@@ -70,32 +71,32 @@ shinyServer(function(input, output) {
     })
     
     
-    output$purp_time = renderPlot({
-        colors_ = c(RColorBrewer::brewer.pal(name="Set1", n = 8), RColorBrewer::brewer.pal(name="Paired", n = 6))
+    ## Plot: Purpose x Time Frequencies
+    output$purp_time = renderGvis({
         
-        loans_c %>%
-            filter(purpose == input$show_purp) %>%
-            select(purpose, issue_d) %>%
-            mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
-                   issue_d = as.Date(issue_d),
-                   purpose = gsub('_', ' ', purpose)) %>%
-            group_by(issue_d, purpose) %>%
-            summarise(frequency = n()) %>%
-            ggplot(aes(x=issue_d, y=frequency)) +
-            geom_line(aes(color = purpose, group=purpose), stat = 'identity') +
-            scale_x_date(date_labels = "%m-%Y", date_breaks = "12 months") +
-            scale_color_manual(values = colors_) +
-            ylab('Frequency') +
-            xlab('Time') +
-            ggtitle('Issued Loan Purposes Over Time') +
-            theme(axis.text = element_text(size = 11),
-                  axis.title = element_text(size = 13),
-                  title = element_text(size = 16),
-                  legend.text = element_text(size = 11))
+            pt_plot = grades_df() %>%
+                #filter( purpose == input$show_purp) %>% 
+                mutate(issue_d = as.Date(issue_d)) %>% 
+                group_by(issue_d, purpose) %>%
+                summarise(frequency = n()) %>% 
+                spread(key = purpose, value = frequency)
         
-    }) 
+        
+        gvisLineChart(pt_plot, xvar="issue_d", yvar= c("debt consolidation", "credit card",        "moving",             "car",               "other",              "home improvement",  
+                                                       "medical",            "small business",     "major purchase",     "vacation",           "wedding",            "house",             
+                                                       "renewable energy",   "educational"),
+                      options = list(width = 1100, height = 400,
+                                     hAxes="[{title:'Time'}]",
+                                     vAxes="[{title:'Frequency'}]",
+                                     hAxis= "{'showTextEvery': '1'}",
+                                     vAxis= "{'showTextEvery': '1'}",
+                                     title="Frequency of Issued Loans by Purpose Over Time",
+                                     explorer="{actions:['dragToZoom', 'rightClickToReset']}",
+                                     bar="{groupWidth:'100%'}"))
+    })
+        
     
-    
+    ## DT: Income Stats
     output$purp_tab <- renderDataTable({
         
         demo_table = dt_vars()  %>%
@@ -113,6 +114,7 @@ shinyServer(function(input, output) {
         
     })
     
+    ## DT: Home Ownership Frequencies
     output$home_tab <- renderDataTable({
         home_table = loan_purps() %>% 
             select(home_ownership) %>%
@@ -126,6 +128,7 @@ shinyServer(function(input, output) {
         
     })
     
+    ## DT: Application Type
     output$app_type <- renderDataTable({
         app_table = loan_purps() %>% 
             select(application_type) %>%
@@ -143,6 +146,7 @@ shinyServer(function(input, output) {
     ##### Fund Page ####
     ####################
     
+    ## Dygraph: Funded vs. Received
     output$fund_pay = renderDygraph({
         pay_xts = xts::xts(payments()[,-1], as.Date(payments()$issue_d) )
         
@@ -151,8 +155,8 @@ shinyServer(function(input, output) {
             dyAxis(
                 "y",
                 label = "Dollars ($)",
-                valueFormatter = 'function(d){return d.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
-                axisLabelFormatter = 'function(d){return d.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
+                valueFormatter = 'function(f){return f.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
+                axisLabelFormatter = 'function(f){return f.toString().replace(/\\B(?=(\\d{3})+(?!\\d))/g, ",");}',
                 axisLabelWidth = 70,
                 axisLabelFontSize = 10
             ) %>%
@@ -172,15 +176,15 @@ shinyServer(function(input, output) {
     ## Plot: Frequency of Issued Loans by Grade Over Time
     output$loan_grades = renderGvis({
 
-        loans_c %>% 
-            select(grade, issue_d) %>% 
-            mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
-                   issue_d = as.Date(issue_d)) %>% 
+        grade_time = grades_df() %>% 
+            # select(grade, issue_d) %>% 
+            # mutate(issue_d = lubridate::parse_date_time(issue_d, orders = '%b-%Y'),
+            #        issue_d = as.Date(issue_d)) %>% 
             group_by(issue_d, grade) %>% 
             summarise(frequency = n()) %>% 
             spread(key = grade, value = frequency)
         
-        gvisLineChart(test, xvar="issue_d", yvar=c("A", "B", "C", "D", "E", "F", "G"),
+        gvisLineChart(grade_time, xvar="issue_d", yvar=c("A", "B", "C", "D", "E", "F", "G"),
                       options = list(width = 1100, height = 400,
                                      hAxes="[{title:'Time'}]",
                                      vAxes="[{title:'Frequency'}]",
@@ -211,26 +215,7 @@ shinyServer(function(input, output) {
                                        explorer="{actions:['dragToZoom', 'rightClickToReset']}"))
     })
     
-    ## Plot: Proportion of Grades within Loan Status
-    output$grade_status = renderGvis ({
-        
-        status_g_graph = grades_df() %>%
-            group_by(loan_status, grade) %>%
-            summarise(n = n()) %>%
-            mutate(proportion = n / sum(n)) %>%
-            select(-n) %>% 
-            spread(key = grade, value = proportion)
-        
-        gvisColumnChart(status_g_graph, xvar="loan_status", yvar=c("A", "B", "C", "D", "E", "F", "G"),
-                        options = list(width = 1100, height = 400,
-                                       hAxes="[{title:'Proportion'}]",
-                                       vAxes="[{title:'Loan Status'}]",
-                                       hAxis= "{'showTextEvery': '1'}",
-                                       vAxis= "{'showTextEvery': '1'}",
-                                       title="Proportion of Grades within Loan Status",
-                                       explorer="{actions:['dragToZoom', 'rightClickToReset']}"))    
-        
-    })
+
     
     ## DT: Grade Freq
     output$grade_freq <- renderDataTable({
@@ -255,6 +240,12 @@ shinyServer(function(input, output) {
         
         datatable(g_purp_table, rownames=FALSE, options = list(paging = F, searching = F))
     })
+
+    ######################
+    ##### Loan Status ####
+    ######################   
+    
+    ##"purp_status"
     
     # output$purp_g_freq <- renderDataTable({
     #     g_purp_table = grades_df() %>%
@@ -266,6 +257,49 @@ shinyServer(function(input, output) {
     #     
     #     datatable(g_purp_table, rownames=FALSE, options = list(paging = F, searching = F))
     # })
+    
+    ## Plot: Proportion of Grades within Loan Status
+    output$grade_status = renderGvis ({
+        
+        status_g_graph = grades_df() %>%
+            group_by(loan_status, grade) %>%
+            summarise(n = n()) %>%
+            mutate(proportion = n / sum(n)) %>%
+            select(-n) %>% 
+            spread(key = grade, value = proportion)
+        
+        gvisColumnChart(status_g_graph, xvar="loan_status", yvar=c("A", "B", "C", "D", "E", "F", "G"),
+                        options = list(width = 1100, height = 400,
+                                       hAxes="[{title:'Proportion'}]",
+                                       vAxes="[{title:'Loan Status'}]",
+                                       hAxis= "{'showTextEvery': '1'}",
+                                       vAxis= "{'showTextEvery': '1'}",
+                                       title="Proportion of Grades within Loan Status",
+                                       explorer="{actions:['dragToZoom', 'rightClickToReset']}")) 
+    })
+        
+        ## Plot: Proportion of Purpose within Loan Status
+        output$purp_status = renderGvis ({
+            
+            status_purp_graph = grades_df() %>%
+                group_by(loan_status, purpose) %>% 
+                summarise(n = n()) %>% 
+                mutate(proportion = n / sum(n)) %>%
+                select(-n) %>% 
+                spread(key = purpose, value = proportion)
+            
+            gvisColumnChart(status_purp_graph, xvar="loan_status", yvar= c("debt consolidation", "credit card",        "moving",             "car",               "other",              "home improvement",  
+                                                                           "medical",            "small business",     "major purchase",     "vacation",           "wedding",            "house",             
+                                                                           "renewable energy",   "educational")  ,
+                            options = list(width = '1100', height = '450',
+                                           hAxes="[{title:'Loan Status'}]",
+                                           vAxes="[{title:'Proportion'}]",
+                                           hAxis= "{'showTextEvery': '1'}",
+                                           vAxis= "{'showTextEvery': '1'}",
+                                           title="Proportion of Purposes within Loan Status",
+                                           explorer="{actions:['dragToZoom', 'rightClickToReset']}"))
+            
+        })
     
     ####################
     ##### Map Page #####
@@ -283,8 +317,8 @@ shinyServer(function(input, output) {
     })
     
     # show histogram using googleVis
-    output$hist <- renderGvis(
-        gvisHistogram(loans_c[,input$selected, drop = FALSE]))
+    # output$hist <- renderGvis(
+    #     gvisHistogram(loans_c[,input$selected, drop = FALSE]))
     
 }
 )
