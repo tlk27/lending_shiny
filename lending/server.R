@@ -296,7 +296,7 @@ shinyServer(function(input, output) {
                         options = list(width = 'auto', height = 400,
                                        hAxes ="[{title:'Proportion'}]",
                                        vAxes ="[{title:'Loan Status'}]",
-                                       hAxis = "{'showTextEvery': '1'}",
+                                       hAxis = "{'showTextEvery': '2'}",
                                        vAxis = "{'showTextEvery': '1'}",
                                        title ="Total Proportion by Loan Status",
                                        explorer ="{actions:['dragToZoom', 'rightClickToReset']}")) 
